@@ -10,6 +10,7 @@
 #define LINESIZE 1000
 #define PIPECAP 10
 #define ARGCAP 50
+#define ARGLENCAP 100
 
 int should_wait = 1;
 
@@ -19,7 +20,7 @@ void just_wait()
 }
 
 
-void print_test( char static_args[PIPECAP][ARGCAP][100], char infile[50], char outfile[50], int pipe_no )
+void print_test( char static_args[PIPECAP][ARGCAP][ARGLENCAP], char infile[50], char outfile[50], int pipe_no )
 {
     for (int arg = 0; arg <= pipe_no; arg++)
     {
@@ -69,7 +70,7 @@ void read_filename( char cmd_line[LINESIZE], int * ch_index, char fname[50] )
 }
 
 
-void redirect_char( char cmd_line[LINESIZE], char stat_arg[100], char infile[50], char outfile[50], char ch, int * pipe_no, int * ch_index, int * arg_no )
+void parse_char( char cmd_line[LINESIZE], char stat_arg[100], char infile[50], char outfile[50], char ch, int * pipe_no, int * ch_index, int * arg_no )
 {
     switch (ch) {
         case ' ':
@@ -102,12 +103,12 @@ void redirect_char( char cmd_line[LINESIZE], char stat_arg[100], char infile[50]
 }
 
 
-void parse_command( char cmd_line[LINESIZE], char static_args[PIPECAP][ARGCAP][100], char infile[50], char outfile[50], int * pipe_no, int * arg_no, int * ch_index )
+void parse_command( char cmd_line[LINESIZE], char static_args[PIPECAP][ARGCAP][ARGLENCAP], char infile[50], char outfile[50], int * pipe_no, int * arg_no, int * ch_index )
 {
     skip_spaces(cmd_line, ch_index);
-    while (cmd_line[*ch_index] != '\0' )//&& cmd_line[*ch_index] != '|')
+    while (cmd_line[*ch_index] != '\0' )
     {
-        redirect_char( cmd_line, static_args[*pipe_no][*arg_no], infile, outfile, cmd_line[*ch_index], pipe_no, ch_index, arg_no );
+        parse_char( cmd_line, static_args[*pipe_no][*arg_no], infile, outfile, cmd_line[*ch_index], pipe_no, ch_index, arg_no );
     }
 }
 
@@ -190,7 +191,7 @@ void redirect_processes( int pipe_no, int child_no, char infile[50], char outfil
 }
 
 
-void args_to_nullterm( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], int child_no )
+void args_to_nullterm( char static_args[PIPECAP][ARGCAP][ARGLENCAP], char * cmd_args[50], int child_no )
 {
     for (int i = 0; strcmp(static_args[child_no][i], ""); i++ )
     {
@@ -200,7 +201,7 @@ void args_to_nullterm( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[5
 }
 
 
-void do_exec( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char infile[50], char outfile[50], int pipe_no, int child_no )
+void do_exec( char static_args[PIPECAP][ARGCAP][ARGLENCAP], char * cmd_args[50], char infile[50], char outfile[50], int pipe_no, int child_no )
 {
     redirect_processes(pipe_no, child_no, infile, outfile);
     args_to_nullterm(static_args, cmd_args, child_no);
@@ -210,7 +211,7 @@ void do_exec( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char 
 }
 
 
-void do_fork( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char infile[50], char outfile[50], int pipe_no)
+void do_fork( char static_args[PIPECAP][ARGCAP][ARGLENCAP], char * cmd_args[50], char infile[50], char outfile[50], int pipe_no)
 {
     int pip[2];
     int fdin = 0;
@@ -242,7 +243,7 @@ void do_fork( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char 
 }
 
 
-void create_processes ( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char infile[50], char outfile[50], int pipe_no )
+void create_processes ( char static_args[PIPECAP][ARGCAP][ARGLENCAP], char * cmd_args[50], char infile[50], char outfile[50], int pipe_no )
 {
     switch (fork())
     {
@@ -283,7 +284,7 @@ void reset_some_values ( char * cmd_args[50], char infile[50], char outfile[50] 
 }
 
 
-void reset_values( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char infile[50], char outfile[50] )
+void reset_values( char static_args[PIPECAP][ARGCAP][ARGLENCAP], char * cmd_args[50], char infile[50], char outfile[50] )
 {
     for (int d = 0; d < 10; d++)
     {
@@ -298,13 +299,23 @@ void reset_values( char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], 
 }
 
 
-void process_command( char cmd_line[LINESIZE], char static_args[PIPECAP][ARGCAP][100], char * cmd_args[50], char infile[50], char outfile[50] )
+void check_if_exit(char static_args[PIPECAP][ARGCAP][ARGLENCAP])
+{
+    if (strcmp(static_args[0][0], "exit") == 0)
+    {
+        exit(0);
+    }
+}
+
+
+void process_command( char cmd_line[LINESIZE], char static_args[PIPECAP][ARGCAP][ARGLENCAP], char * cmd_args[50], char infile[50], char outfile[50] )
 {
     int arg_no = 0;
     int pipe_no = 0;
     int index = 0;
 
     parse_command(cmd_line, static_args, infile, outfile, &pipe_no, &arg_no, &index);
+    check_if_exit(static_args);
     create_processes(static_args, cmd_args, infile, outfile, pipe_no);
     reset_values(static_args, cmd_args, infile, outfile);
 }
@@ -312,13 +323,13 @@ void process_command( char cmd_line[LINESIZE], char static_args[PIPECAP][ARGCAP]
 
 int main( int argc, const char * argv[], char * envp[] )
 {
-    char cmd_line[LINESIZE], static_args[PIPECAP][ARGCAP][100] = {{ "" }};
+    char cmd_line[LINESIZE], static_args[PIPECAP][ARGCAP][ARGLENCAP] = {{ "" }};
     char * cmd_args[50];
     char infile[50] = {'\0'}; 
     char outfile[50] = {'\0'};
     
     print_prompt();
-    setbuf(stdout, NULL); ///
+    setbuf(stdout, NULL); 
     while ( fgets(cmd_line, LINESIZE, stdin) != NULL )
     {
         process_command( cmd_line, static_args, cmd_args, infile, outfile );
